@@ -1,5 +1,6 @@
 import os
 import random
+from datetime import datetime
 
 import torch
 import torch.nn as nn
@@ -7,74 +8,97 @@ import torch.optim as optim
 from vggface import VGGFace
 from dataset import FIWDataset
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
-# import sklearn.metrics.roc_auc_score as roc_auc
+from test import prepare_submission
 
-NUM_EPOCHS = 5
+NUM_EPOCHS = 50
 VAL_FRACTION = 0.2
 
-# random.seed(228)
-# torch.manual_seed(228)
-
+random.seed(227)
+torch.manual_seed(227)
 
 ROOT_PATH = "/home/franchukp/kinship_verification/ustc-nelslip_siamese/FG2020-kinship-master/Track1/input"
-
 
 
 def train():
     ############## DATA PREPARATION ##############
 
+    # # split on train and val set
+    families = list(os.listdir(os.path.join(ROOT_PATH, "train/test-public-faces/test-public-faces/")))
 
-    # split on train and val set
-    families = list(os.listdir(os.path.join(ROOT_PATH, "train/train-faces/")))
     val_set_size = int(len(families) * VAL_FRACTION)
 
     val_families = random.sample(families, val_set_size)
     train_families = [fam for fam in families if fam not in val_families]
 
-
-
     train_dataset = FIWDataset(train_families=train_families,
-                         csv_file=os.path.join(ROOT_PATH, "train_relationships.csv"),
-                         root_dir=os.path.join(ROOT_PATH, "train/train-faces/"),
-                        )
+                               csv_file=os.path.join(ROOT_PATH, "train_relationships.csv"),
+                               root_dir=os.path.join(ROOT_PATH, "train/test-public-faces/test-public-faces/"),
+                               )
 
-    train_dataloader = DataLoader(train_dataset, batch_size=8,
-                            shuffle=True, num_workers=2)
+    train_dataloader = DataLoader(train_dataset, batch_size=16,
+                                  shuffle=True, num_workers=2)
 
-    val_dataset = FIWDataset(train_families=val_families,
-                                    csv_file=os.path.join(ROOT_PATH, "train_relationships.csv"),
-                                    root_dir=os.path.join(ROOT_PATH, "train/train-faces/"),
-                                    )
+    val_dataset = FIWDataset(train_families=val_families, train=False,
+                             csv_file=os.path.join(ROOT_PATH, "train_relationships.csv"),
+                             root_dir=os.path.join(ROOT_PATH, "train/test-public-faces/test-public-faces/"),
+                             )
 
-    val_dataloader = DataLoader(val_dataset, batch_size=8,
-                            shuffle=True, num_workers=2)
+    val_dataloader = DataLoader(val_dataset, batch_size=16,
+                                shuffle=True, num_workers=2)
 
-    print(len(train_families))
-    print(len(val_families))
+    print("Train families number: ", len(train_families))
+    print("Validation families number: ", len(val_families))
 
-    print(len(train_dataset))
-    print(len(val_dataset))
+    print("Train dataset size: ", len(train_dataset))
+    print("Validation dataset size: ", len(val_dataset))
 
     ############## MODEL & TRAINING PREPARATION ##############
-    model = VGGFace(desc='resnet50', desc_out_shape=8631, neurons_num=[2048, 512])
+    model = VGGFace(desc='resnet_vggface')
 
     # get available hardware and move model to it
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    criterion = nn.BCELoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    print(model)
+
+    total_params = 0
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad: continue
+        param = parameter.numel()
+        print(name, param)
+        total_params += param
+    print("Total parameters: ", total_params)
+
+    sigm = nn.Sigmoid()
+
+    criterion = nn.BCEWithLogitsLoss()
+    # params_to_optimize = list(filter(lambda p : (p.requires_grad == True), model.parameters()))
+    # print(params_to_optimize)
+
+    params_to_optimize = []
+    for name, param in model.named_parameters():
+        if param.requires_grad == True:
+            params_to_optimize.append(param)
+            print("Trainable parameter:", name)
+
+    best_acc = 0
+
+    optimizer = optim.Adam(params_to_optimize, lr=0.0003)
+
+    date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+    with open("training_results.txt", "a") as f:
+        f.write("Date: {}\n".format(date))
 
     for epoch in range(NUM_EPOCHS):
         print("Epoch {}\n".format(epoch + 1))
         model.train()
 
         running_loss = 0
+        running_corrects = 0
         all_outputs = []
-
-        # TODO: change on tqdm.notebook
         for batch in tqdm(train_dataloader):
             x1, x2, labels = batch
 
@@ -88,27 +112,34 @@ def train():
 
             # forward + backward + optimize
             outputs = model(x1, x2)
-            loss = criterion(outputs.float(), labels.float())
+
+            loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
 
             # multiply by the size of batch
             running_loss += loss.item() * x1.size(0)
-            # all_outputs += outputs
 
+            predictions = sigm(outputs.float())
 
-        epoch_loss = running_loss / len(train_dataset)
-        # epoch_roc_auc = roc_auc([1 for i in range(len(all_outputs))], all_outputs)
+            for i in range(len(predictions)):
+                predictions[i] = int(predictions[i] > 0.5)
+
+            running_corrects += torch.sum(predictions == labels.data)
+
+        train_loss = running_loss / len(train_dataset)
+        train_acc = running_corrects / len(train_dataset)
 
         running_loss = 0
-        all_outputs = 0
+        running_corrects = 0
 
-        print("| train loss: {} |\n".format(epoch_loss))
+        print("| train loss: {} | train acc: {} |\n".format(train_loss, train_acc))
 
+        with open("training_results.txt", "a") as f:
+            f.write("{} | {} |".format(train_loss, train_acc))
 
         model.eval()
 
-        # TODO: change on tqdm.notebook
         for batch in tqdm(val_dataloader):
             x1, x2, labels = batch
 
@@ -116,7 +147,6 @@ def train():
             x1 = x1.to(device)
             x2 = x2.to(device)
             labels = labels.to(device)
-
 
             # forward
             with torch.no_grad():
@@ -126,19 +156,32 @@ def train():
 
             # multiply by the size of batch
             running_loss += loss.item() * x1.size(0)
-            # all_outputs += outputs
 
-        epoch_loss = running_loss / len(val_dataset)
-        # epoch_roc_auc = roc_auc([1 for i in range(len(all_outputs))], all_outputs)
+            predictions = sigm(outputs.float())
 
-        running_loss = 0
-        all_outputs = 0
+            for i in range(len(predictions)):
+                predictions[i] = int(predictions[i] > 0.5)
 
-        print("| val loss: {} |\n".format(epoch_loss))
+            running_corrects += torch.sum(predictions == labels.data)
 
-        if epoch % 3 == 0:
-            torch.save(model.state_dict(), "vggface_resnet50_epoch={}.pth".format(epoch))
+        val_loss = running_loss / len(val_dataset)
+        val_acc = running_corrects / len(val_dataset)
+
+        print("| val loss: {} | val acc: {} |\n".format(val_loss, val_acc))
+        with open("training_results.txt", "a") as f:
+            f.write(" {} | {}\n".format(val_loss, val_acc))
+
+        if epoch % 4 == 0:
+            torch.save(model.state_dict(), "weights/vggface_resnet50_epoch={}.pth".format(epoch))
+
+        if train_acc > best_acc:
+            print("New best model: ", epoch)
+            best_acc = train_acc
+            best_model = model
+
+    return best_model
+
 
 if __name__ == "__main__":
-    train()
-
+    model = train()
+    prepare_submission(model)
