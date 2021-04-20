@@ -22,8 +22,25 @@ from albumentations import (
 #             MedianBlur(blur_limit=5),
 #         ])
 
+IMG_SIZE_FN = 160
+IMG_SIZE_VGG = 224
 
 
+def prewhiten(x):
+    if x.ndim == 4:
+        axis = (1, 2, 3)
+        size = x[0].size
+    elif x.ndim == 3:
+        axis = (0, 1, 2)
+        size = x.size
+    else:
+        raise ValueError('Dimension should be 3 or 4')
+
+    mean = np.mean(x, axis=axis, keepdims=True)
+    std = np.std(x, axis=axis, keepdims=True)
+    std_adj = np.maximum(std, 1.0/np.sqrt(size))
+    y = (x - mean) / std_adj
+    return y
 
 
 def preprocess_input(x, data_format=None, version=1, train=True):
@@ -102,6 +119,16 @@ def read_img(path, train=True):
     img = np.array(img).astype(np.float)
     return preprocess_input(img, version=2, train=train)
 
+def read_img_fn(path):
+    img = image.load_img(path, target_size=(IMG_SIZE_FN, IMG_SIZE_FN))
+    img = np.array(img).astype(np.float)
+    return prewhiten(img)
+
+def read_img_vgg(path):
+    img = image.load_img(path, target_size=(IMG_SIZE_VGG, IMG_SIZE_VGG))
+    img = np.array(img).astype(np.float)
+    return preprocess_input(img, version=2)
+
 def gen(list_tuples, person_to_images_map, batch_size=16):
     ppl = list(person_to_images_map.keys())
     while True:
@@ -120,10 +147,14 @@ def gen(list_tuples, person_to_images_map, batch_size=16):
                 print(x[0])
 
         X1 = [choice(person_to_images_map[x[0]]) for x in batch_tuples]
-        X1 = np.array([read_img(x) for x in X1])
+        # X1 = np.array([read_img(x) for x in X1])
+        X1_FN = np.array([read_img_fn(x) for x in X1])
+        X1_VGG = np.array([read_img_vgg(x) for x in X1])
 
         X2 = [choice(person_to_images_map[x[1]]) for x in batch_tuples]
-        X2 = np.array([read_img(x) for x in X2])
+        # X2 = np.array([read_img(x) for x in X2])
+        X2_FN = np.array([read_img_fn(x) for x in X2])
+        X2_VGG = np.array([read_img_vgg(x) for x in X2])
 
-        yield [X1, X2], labels
+        yield [X1_FN, X2_FN, X1_VGG, X2_VGG], labels
 
