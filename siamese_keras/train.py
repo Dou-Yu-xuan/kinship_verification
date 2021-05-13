@@ -13,7 +13,7 @@ from sklearn.metrics import roc_auc_score, accuracy_score
 import os
 
 from pathlib import Path
-from utils import signed_sqrt, prepare_images
+from utils import signed_sqrt, prepare_images, prepare_images_ellipse
 from dataset import get_train_val, gen, fiw_data_generator
 
 from vggface import VGGFace
@@ -42,7 +42,7 @@ val_df = pd.read_csv(val_file_path)
 
 auc = tf.keras.metrics.AUC()
 
-logdir = "logs/" + "vggface_facenet_comb3"
+logdir = "logs/" + "vggface_facenet_flip_contrast_brightness_saturation"
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=logdir)
 
 def chunker(seq, size=32):
@@ -56,42 +56,42 @@ def convert_to_binary(lst, threshold=0.5):
             lst[i] = 0
     return lst
 
-class TestCallback(tensorflow.keras.callbacks.Callback):
-    def __init__(self, data_folder, csv_file):
-        self.test_df = pd.read_csv(csv_file)
-        self.data_folder = data_folder
-
-    def on_epoch_end(self, epoch, logs={}):
-        if epoch % 10 == 0:
-            predictions = []
-            labels = self.test_df.label.tolist()
-
-            for batch in chunker(list(zip(self.test_df.p1.values, self.test_df.p2.values, self.test_df.label.values))):
-                X1 = [x[0] for x in batch]
-                X1_FN = np.array([read_img(self.data_folder + x, IMG_SIZE_FN) for x in X1])
-                X1_VGG = np.array([read_img_vgg(self.data_folder + x) for x in X1])
-
-                X2 = [x[1] for x in batch]
-                X2_FN = np.array([read_img(self.data_folder + x, IMG_SIZE_FN) for x in X2])
-                X2_VGG = np.array([read_img_vgg(self.data_folder + x) for x in X2])
-
-                pred = self.model.predict([X1_FN, X2_FN, X1_VGG, X2_VGG]).ravel().tolist()
-
-                predictions += pred
-
-                # X1 = np.array([read_img_of(os.path.join(self.data_folder, x[0])) for x in batch])
-                # X2 = np.array([read_img_of(os.path.join(self.data_folder, x[1])) for x in batch])
-                #
-                # pred = self.model.predict([X1, X2]).ravel().tolist()
-                #
-                # predictions += pred
-
-            auc_score = roc_auc_score(labels, predictions)
-
-            predictions = convert_to_binary(predictions)
-            accuracy = accuracy_score(labels, predictions)
-
-            print("Epoch: {} | Test ROC AUC: {} | Test Accuracy: {}".format(epoch, auc_score, accuracy))
+# class TestCallback(tensorflow.keras.callbacks.Callback):
+#     def __init__(self, data_folder, csv_file):
+#         self.test_df = pd.read_csv(csv_file)
+#         self.data_folder = data_folder
+#
+#     def on_epoch_end(self, epoch, logs={}):
+#         if epoch % 10 == 0:
+#             predictions = []
+#             labels = self.test_df.label.tolist()
+#
+#             for batch in chunker(list(zip(self.test_df.p1.values, self.test_df.p2.values, self.test_df.label.values))):
+#                 X1 = [x[0] for x in batch]
+#                 X1_FN = np.array([read_img(self.data_folder + x, IMG_SIZE_FN) for x in X1])
+#                 X1_VGG = np.array([read_img_vgg(self.data_folder + x) for x in X1])
+#
+#                 X2 = [x[1] for x in batch]
+#                 X2_FN = np.array([read_img(self.data_folder + x, IMG_SIZE_FN) for x in X2])
+#                 X2_VGG = np.array([read_img_vgg(self.data_folder + x) for x in X2])
+#
+#                 pred = self.model.predict([X1_FN, X2_FN, X1_VGG, X2_VGG]).ravel().tolist()
+#
+#                 predictions += pred
+#
+#                 # X1 = np.array([read_img_of(os.path.join(self.data_folder, x[0])) for x in batch])
+#                 # X2 = np.array([read_img_of(os.path.join(self.data_folder, x[1])) for x in batch])
+#                 #
+#                 # pred = self.model.predict([X1, X2]).ravel().tolist()
+#                 #
+#                 # predictions += pred
+#
+#             auc_score = roc_auc_score(labels, predictions)
+#
+#             predictions = convert_to_binary(predictions)
+#             accuracy = accuracy_score(labels, predictions)
+#
+#             print("Epoch: {} | Test ROC AUC: {} | Test Accuracy: {}".format(epoch, auc_score, accuracy))
 
 
 def baseline_model():
@@ -335,12 +335,64 @@ def baseline_model():
     #############################################
 
 
+    ######## Combination 0 #################
+    # x = Dense(128, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # out = Dense(1, activation="sigmoid")(x)
 
+    ######### Combination 1 ################
+
+    # x = Dense(128, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # x = Dense(64, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # out = Dense(1, activation="sigmoid")(x)
+
+    ######### Combination 2 ################
+
+    # x = Dense(256, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # x = Dense(128, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # x = Dense(64, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # out = Dense(1, activation="sigmoid")(x)
+
+    ######### Combination 3 ################
+
+    # x = Dense(512, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # x = Dense(256, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # x = Dense(128, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # x = Dense(64, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # out = Dense(1, activation="sigmoid")(x)
+
+    ######### Combination 4 ################
+    #
+    x = Dense(1024, activation="relu")(x)
+    x = Dropout(0.02)(x)
+    x = Dense(512, activation="relu")(x)
+    x = Dropout(0.02)(x)
+    x = Dense(256, activation="relu")(x)
+    x = Dropout(0.02)(x)
     x = Dense(128, activation="relu")(x)
+    x = Dropout(0.02)(x)
+    x = Dense(64, activation="relu")(x)
     x = Dropout(0.02)(x)
     out = Dense(1, activation="sigmoid")(x)
 
+    ######## Combination 8 #################
+    # x = Dense(64, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # out = Dense(1, activation="sigmoid")(x)
+
     model = Model([input_1, input_2, input_3, input_4], out)
+
+
+
 
     # input_1 = Input(shape=(224, 224, 3))
     # input_2 = Input(shape=(224, 224, 3))
@@ -384,10 +436,10 @@ def baseline_model():
 
 def train():
     model = baseline_model()
-    file_path = "checkpoints/vggface_facenet_comb3.h5"
+    file_path = "checkpoints/vggface_facenet_flip_contrast_brightness_saturation.h5"
     checkpoint = ModelCheckpoint(file_path, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
     reduce_on_plateau = ReduceLROnPlateau(monitor="val_acc", mode="max", factor=0.3, patience=30, verbose=1)
-    callbacks_list = [checkpoint, reduce_on_plateau, TestCallback(images_root_dir, test_file_path), tensorboard_callback]
+    callbacks_list = [checkpoint, reduce_on_plateau, tensorboard_callback]
 
     history = model.fit_generator(fiw_data_generator(images_root_dir, train_file_path, batch_size=16),
                                   use_multiprocessing=False,
@@ -399,6 +451,7 @@ def train():
 
 
 if __name__ == "__main__":
-    # prepare_images(Path("../kinship_dataset/test-public-faces/"), Path("../kinship_dataset/test-public-faces-prepared/"))
+    # prepare_images(Path("../FIW_dataset/FIDs_NEW/"), Path("../FIW_dataset/FIDs_NEW_square_crop/"))
+    # prepare_images_ellipse(Path("../FIW_dataset/FIDs_NEW/"), Path("../FIW_dataset/FIDs_NEW_ellipse_crop/"))
     train()
 

@@ -70,7 +70,7 @@ def weighted_accuracy(df):
 def test():
     model = baseline_model()
 
-    file_path = f"checkpoints/vggface_facenet_comb7.h5"
+    file_path = f"checkpoints/vggface_facenet_flip_contrast_brightness_saturation.h5"
     model.load_weights(file_path)
 
     test_df = pd.read_csv(test_df_path)
@@ -80,12 +80,12 @@ def test():
 
     for batch in tqdm(chunker(list(zip(test_df.p1.values.tolist(), test_df.p2.values.tolist(), test_df.label.values.tolist())))):
         X1 = [x[0] for x in batch]
-        X1_FN = np.array([read_img(data_folder + x, IMG_SIZE_FN) for x in X1])
-        X1_VGG = np.array([read_img_vgg(data_folder + x) for x in X1])
+        X1_FN = np.array([read_img(data_folder + x, IMG_SIZE_FN, train=False) for x in X1])
+        X1_VGG = np.array([read_img_vgg(data_folder + x, train=False) for x in X1])
 
         X2 = [x[1] for x in batch]
-        X2_FN = np.array([read_img(data_folder + x, IMG_SIZE_FN) for x in X2])
-        X2_VGG = np.array([read_img_vgg(data_folder + x) for x in X2])
+        X2_FN = np.array([read_img(data_folder + x, IMG_SIZE_FN, train=False) for x in X2])
+        X2_VGG = np.array([read_img_vgg(data_folder + x, train=False) for x in X2])
 
         pred = model.predict([X1_FN, X2_FN, X1_VGG, X2_VGG]).ravel().tolist()
 

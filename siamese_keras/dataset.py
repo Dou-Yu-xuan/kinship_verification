@@ -15,14 +15,14 @@ from albumentations import (
 )
 
 
-# transforms = Compose([
-#             HorizontalFlip(),
-#             # RandomBrightnessContrast(brightness_limit=0, contrast_limit=0.2)
-#             # RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0)
-#             HueSaturationValue(hue_shift_limit=0, sat_shift_limit=30, val_shift_limit=0),
-#             # ToGray()
-#             MedianBlur(blur_limit=5),
-#         ])
+transforms = Compose([
+            HorizontalFlip(),
+            RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2),
+            # RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0)
+            HueSaturationValue(hue_shift_limit=0, sat_shift_limit=30, val_shift_limit=0),
+            # ToGray()
+            # MedianBlur(blur_limit=5),
+        ])
 
 # TODO: make these arguments prettier
 IMG_SIZE_FN = (160, 160)
@@ -33,7 +33,7 @@ IMG_SIZE_DID = (55, 47)
 IMG_SIZE_OF = (96, 96)
 
 
-def prewhiten(x):
+def prewhiten(x, train=True):
     if x.ndim == 4:
         axis = (1, 2, 3)
         size = x[0].size
@@ -42,6 +42,10 @@ def prewhiten(x):
         size = x.size
     else:
         raise ValueError('Dimension should be 3 or 4')
+
+    if train:
+        x = x.astype('float32')
+        x = transforms(image=x)['image']
 
     mean = np.mean(x, axis=axis, keepdims=True)
     std = np.std(x, axis=axis, keepdims=True)
@@ -56,9 +60,9 @@ def preprocess_input(x, data_format=None, version=1, train=True):
         data_format = K.image_data_format()
     assert data_format in {'channels_last', 'channels_first'}
 
-    # if train:
-    #     x_temp = x_temp.astype('float32')
-    #     x_temp = transforms(image=x_temp)['image']
+    if train:
+        x_temp = x_temp.astype('float32')
+        x_temp = transforms(image=x_temp)['image']
 
     if version == 1:
         if data_format == 'channels_first':
@@ -91,15 +95,15 @@ def preprocess_input(x, data_format=None, version=1, train=True):
     return x_temp
 
 
-def read_img(path, IMG_SIZE):
+def read_img(path, IMG_SIZE, train=True):
     img = image.load_img(path, target_size=(IMG_SIZE[0], IMG_SIZE[1]))
     img = np.array(img).astype(np.float)
-    return prewhiten(img)
+    return prewhiten(img, train=train)
 
-def read_img_vgg(path):
+def read_img_vgg(path, train=True):
     img = image.load_img(path, target_size=(IMG_SIZE_VGG[0], IMG_SIZE_VGG[1]))
     img = np.array(img).astype(np.float)
-    return preprocess_input(img, version=2)
+    return preprocess_input(img, version=2, train=train)
 
 
 
