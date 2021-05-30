@@ -11,7 +11,7 @@ import numpy as np
 
 import dlib
 
-predictor_path = "weights/shape_predictor_68_face_landmarks.dat"
+predictor_path = "../weights/shape_predictor_68_face_landmarks.dat"
 
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(predictor_path)
@@ -28,7 +28,6 @@ def focal_loss(gamma=2., alpha=.25):
 
 def signed_sqrt(x):
     return keras.backend.sign(x) * keras.backend.sqrt(keras.backend.abs(x) + 1e-9)
-
 
 
 

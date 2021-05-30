@@ -7,21 +7,18 @@ from tensorflow.keras import backend as K
 import tensorflow.keras
 import pandas as pd
 import numpy as np
-from dataset import read_img, read_img_vgg
-from sklearn.metrics import roc_auc_score, accuracy_score
 
 import os
-
 from pathlib import Path
 from utils import signed_sqrt, prepare_images, prepare_images_ellipse
-from dataset import get_train_val, gen, fiw_data_generator
+from dataset import fiw_data_generator
 
-from vggface import VGGFace
-from facenet import FaceNet
-from arcface import ArcFace
-from deepid import DeepID
-from facenet_deepface import FaceNetDF
-from openface import OpenFace
+from models.vggface import VGGFace
+from models.facenet import FaceNet
+from models.arcface import ArcFace
+from models.deepid import DeepID
+from models.facenet_deepface import FaceNetDF
+from models.openface import OpenFace
 
 IMG_SIZE_FN = (160, 160)
 IMG_SIZE_VGG = (224, 224)
@@ -56,42 +53,6 @@ def convert_to_binary(lst, threshold=0.5):
             lst[i] = 0
     return lst
 
-# class TestCallback(tensorflow.keras.callbacks.Callback):
-#     def __init__(self, data_folder, csv_file):
-#         self.test_df = pd.read_csv(csv_file)
-#         self.data_folder = data_folder
-#
-#     def on_epoch_end(self, epoch, logs={}):
-#         if epoch % 10 == 0:
-#             predictions = []
-#             labels = self.test_df.label.tolist()
-#
-#             for batch in chunker(list(zip(self.test_df.p1.values, self.test_df.p2.values, self.test_df.label.values))):
-#                 X1 = [x[0] for x in batch]
-#                 X1_FN = np.array([read_img(self.data_folder + x, IMG_SIZE_FN) for x in X1])
-#                 X1_VGG = np.array([read_img_vgg(self.data_folder + x) for x in X1])
-#
-#                 X2 = [x[1] for x in batch]
-#                 X2_FN = np.array([read_img(self.data_folder + x, IMG_SIZE_FN) for x in X2])
-#                 X2_VGG = np.array([read_img_vgg(self.data_folder + x) for x in X2])
-#
-#                 pred = self.model.predict([X1_FN, X2_FN, X1_VGG, X2_VGG]).ravel().tolist()
-#
-#                 predictions += pred
-#
-#                 # X1 = np.array([read_img_of(os.path.join(self.data_folder, x[0])) for x in batch])
-#                 # X2 = np.array([read_img_of(os.path.join(self.data_folder, x[1])) for x in batch])
-#                 #
-#                 # pred = self.model.predict([X1, X2]).ravel().tolist()
-#                 #
-#                 # predictions += pred
-#
-#             auc_score = roc_auc_score(labels, predictions)
-#
-#             predictions = convert_to_binary(predictions)
-#             accuracy = accuracy_score(labels, predictions)
-#
-#             print("Epoch: {} | Test ROC AUC: {} | Test Accuracy: {}".format(epoch, auc_score, accuracy))
 
 
 def baseline_model():
@@ -103,7 +64,6 @@ def baseline_model():
 
     model_vgg = VGGFace(model='resnet50', include_top=False)
     model_facenet = FaceNet()
-
 
     x1 = model_facenet(input_1)
     x2 = model_facenet(input_2)
@@ -320,11 +280,11 @@ def baseline_model():
     # x3_x4_diff_sq = Multiply()([x3_x4_diff, x3_x4_diff])
     #
     # x3_x4_product = Multiply()([x3, x4])
-    #
+
     # x3_sq_x4_sq_diff = Conv2D(128, [1, 1])(x3_sq_x4_sq_diff)
     # x3_x4_diff_sq = Conv2D(128, [1, 1])(x3_x4_diff_sq)
     # x3_x4_product = Conv2D(128, [1, 1])(x3_x4_product)
-    #
+
     # x = Concatenate(axis=-1)([
     #     Flatten()(x3_sq_x4_sq_diff), x1_sq_x2_sq_diff,
     #     Flatten()(x3_x4_diff_sq), x1_x2_diff_sq,
@@ -340,7 +300,12 @@ def baseline_model():
     # x = Dropout(0.02)(x)
     # out = Dense(1, activation="sigmoid")(x)
 
-    ######### Combination 1 ################
+    ######## Combination 1 #################
+    # x = Dense(64, activation="relu")(x)
+    # x = Dropout(0.02)(x)
+    # out = Dense(1, activation="sigmoid")(x)
+
+    ######### Combination 2 ################
 
     # x = Dense(128, activation="relu")(x)
     # x = Dropout(0.02)(x)
@@ -348,7 +313,7 @@ def baseline_model():
     # x = Dropout(0.02)(x)
     # out = Dense(1, activation="sigmoid")(x)
 
-    ######### Combination 2 ################
+    ######### Combination 3 ################
 
     # x = Dense(256, activation="relu")(x)
     # x = Dropout(0.02)(x)
@@ -358,7 +323,7 @@ def baseline_model():
     # x = Dropout(0.02)(x)
     # out = Dense(1, activation="sigmoid")(x)
 
-    ######### Combination 3 ################
+    ######### Combination 4 ################
 
     # x = Dense(512, activation="relu")(x)
     # x = Dropout(0.02)(x)
@@ -370,7 +335,7 @@ def baseline_model():
     # x = Dropout(0.02)(x)
     # out = Dense(1, activation="sigmoid")(x)
 
-    ######### Combination 4 ################
+    ######### Combination 5-8 ################
     #
     x = Dense(1024, activation="relu")(x)
     x = Dropout(0.02)(x)
@@ -384,31 +349,28 @@ def baseline_model():
     x = Dropout(0.02)(x)
     out = Dense(1, activation="sigmoid")(x)
 
-    ######## Combination 8 #################
-    # x = Dense(64, activation="relu")(x)
-    # x = Dropout(0.02)(x)
-    # out = Dense(1, activation="sigmoid")(x)
 
     model = Model([input_1, input_2, input_3, input_4], out)
 
 
 
 
-    # input_1 = Input(shape=(224, 224, 3))
-    # input_2 = Input(shape=(224, 224, 3))
+    # input_1 = Input(shape=(IMG_SIZE_VGG[0], IMG_SIZE_VGG[1], 3))
+    # input_2 = Input(shape=(IMG_SIZE_VGG[0], IMG_SIZE_VGG[1], 3))
 
 
     # base_model = VGGFace(model='resnet50', include_top=False)
+    # # base_model.trainable = False
     # for x in base_model.layers[:-3]:
     #     x.trainable = True
 
     # x1 = base_model(input_1)
     # x2 = base_model(input_2)
-
-
-    # x1 = GlobalMaxPool2D()(x1)
-    # x2 = GlobalAvgPool2D()(x2)
-
+    #
+    #
+    # # x1 = GlobalMaxPool2D()(x1)
+    # # x2 = GlobalAvgPool2D()(x2)
+    #
     # x3 = Subtract()([x1, x2])
     # x3 = Multiply()([x3, x3])
     #

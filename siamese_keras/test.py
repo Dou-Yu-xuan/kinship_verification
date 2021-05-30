@@ -1,21 +1,15 @@
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score, accuracy_score
-
 from tqdm import tqdm
 
 #TODO: create baseline model file, and put model definition into it
-#TODO: create utils.py file
 from train import baseline_model
 from dataset import read_img, read_img_vgg
 import os
 
 from pathlib import Path
 from utils import prepare_images
-
-
-
-test_path = "../kinship_dataset/test/"
 
 
 data_folder = '../FIW_dataset/FIDs_NEW/'
@@ -39,38 +33,10 @@ def convert_to_binary(lst, threshold=0.5):
             lst[i] = 0
     return lst
 
-def weighted_accuracy(df):
-    relations = df.relation.unique().tolist()
-
-    relation2acc = {r:0 for r in relations}
-
-    average_acc = 0
-
-    for relation in relations:
-        filtered_df = df[df["relation"] == relation]
-
-        predictions = filtered_df.prediction.tolist()
-        labels = filtered_df.label.tolist()
-
-        predictions = convert_to_binary(predictions)
-        acc = accuracy_score(labels, predictions)
-
-        relation2acc[relation] += acc
-
-        weigth = filtered_df.shape[0]
-
-        average_acc += weigth * acc
-
-    average_acc /= df.shape[0]
-
-    return average_acc, relation2acc
-
-
-
 def test():
     model = baseline_model()
 
-    file_path = f"checkpoints/vggface_facenet_flip_contrast_brightness_saturation.h5"
+    file_path = f"checkpoints/arcface_openface_baseline.h5"
     model.load_weights(file_path)
 
     test_df = pd.read_csv(test_df_path)
@@ -92,12 +58,10 @@ def test():
         # X1 = np.array([read_img(os.path.join(data_folder, x[0])) for x in batch])
         # X2 = np.array([read_img(os.path.join(data_folder, x[1])) for x in batch])
 
-        # X1 = np.array([read_img_of(os.path.join(data_folder, x[0])) for x in batch])
-        # X2 = np.array([read_img_of(os.path.join(data_folder, x[1])) for x in batch])
-        #
+        # X1 = np.array([read_img(os.path.join(data_folder, x[0]), IMG_SIZE_DID, train=False) for x in batch])
+        # X2 = np.array([read_img(os.path.join(data_folder, x[1]), IMG_SIZE_DID, train=False) for x in batch])
+        # #
         # pred = model.predict([X1, X2]).ravel().tolist()
-
-        # pred = model.predict([X1_FN, X2_FN, X1_VGG, X2_VGG]).ravel().tolist()
 
         predictions += pred
 
@@ -114,12 +78,7 @@ def test():
     print("Accuracy: ", accuracy)
 
 
-    weighted_acc, acc_per_relation = weighted_accuracy(test_df)
-    print("Weighted accuracy: ", weighted_acc)
-
-    print(acc_per_relation)
-
-    # test_df.to_csv("predictions_vggface_facenet_cropped.csv", index=False)
+    test_df.to_csv("predictions/predictions_arcface_openface_baseline.csv", index=False)
 
 
 if __name__ == "__main__":
