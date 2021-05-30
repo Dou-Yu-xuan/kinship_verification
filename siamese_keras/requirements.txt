@@ -1,0 +1,9 @@
+tqdm==4.50.2
+numpy==1.13.3
+albumentations==0.5.2
+dlib==19.22.0
+insightface==0.2.1
+keras_applications==1.0.8
+pandas==1.2.4
+scikit_learn==0.24.2
+tensorflow==1.15.0
