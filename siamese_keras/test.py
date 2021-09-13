@@ -36,7 +36,7 @@ def convert_to_binary(lst, threshold=0.5):
 def test():
     model = baseline_model()
 
-    file_path = f"checkpoints/arcface_openface_baseline.h5"
+    file_path = "checkpoints/arcface_openface_baseline.h5"
     model.load_weights(file_path)
 
     test_df = pd.read_csv(test_df_path)

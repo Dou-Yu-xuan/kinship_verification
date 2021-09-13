@@ -53,7 +53,7 @@ def prepare_images(root_dir, output_dir):
                 bbox, landmarks = detector.detect(img, threshold=0.5, scale=1.0)
                 output_path = output_person / img_path.name
                 if len(landmarks) < 1:
-                    print(f'smth wrong with {img_path}')
+                    print('smth wrong with {}'.format(img_path))
                     continue
                 warped_img = norm_crop(img, landmarks[0])
                 cv2.imwrite(str(output_path), warped_img)
@@ -120,7 +120,7 @@ def prepare_images_ellipse(root_dir, output_dir):
                 output_path = output_person / img_path.name
                 cropped = detect_n_crop(img, detector)
                 if cropped is None:
-                    print(f'smth wrong with {img_path}')
+                    print('smth wrong with {}'.format(img_path))
                     cv2.imwrite(str(output_path), img)
                 else:
                     cv2.imwrite(str(output_path), cropped)
